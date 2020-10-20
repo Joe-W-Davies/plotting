@@ -6,6 +6,7 @@ import numpy as np
 import matplotlib
 matplotlib.use('Agg')
 import root_pandas
+import uproot as upr
 import plotting.parse_yaml as pyml
 import plotting.plot_dmc_hist as pldmc
 import qRC.syst.qRC_systematics as syst
@@ -67,27 +68,45 @@ def check_vars(df, varrs):
 def main(options):
     
     plot_dict = make_unique_names(pyml.yaml_parser(options.config)())
-    varrs = make_vars(plot_dict,['weight', 'probePassEleVeto', 'tagPt', 'tagScEta', 'tagR9', 'probeEtaWidth_Sc', 'probePhiWidth_Sc','probePhoIso_uncorr', 'probeScEnergy', 'probeSigmaRR'])
-    varrs_data = make_vars(plot_dict,['weight', 'probePassEleVeto', 'tagPt', 'tagScEta', 'tagR9', 'probeEtaWidth_Sc', 'probePhiWidth_Sc','probePhoIso_uncorr', 'probeScEnergy', 'probeSigmaRR'],extens=False)
+    #varrs = make_vars(plot_dict,['weight', 'probePassEleVeto', 'tagPt', 'tagScEta', 'probeEtaWidth', 'probePhiWidth','probeScEnergy', 'probeSigmaRR', 'newULPhoIDcorrAllFinal']) #nominal vars
+    varrs = make_vars(plot_dict,['weight', 'probePassEleVeto', 'tagPt', 'tagScEta', 'probeEtaWidth', 'probePhiWidth','probeScEnergy', 'probeSigmaRR', 'probePhoIso03'])  #for flashgg. Need wrongly labelled eta+phi widths
+    varrs_data = make_vars(plot_dict,['weight', 'probePassEleVeto', 'tagPt', 'tagScEta', 'probeEtaWidth', 'probePhiWidth','probePhiWidth_Sc', 'probeEtaWidth_Sc', 'probePhoIso03','probeScEnergy', 'probeSigmaRR'],extens=False)
 
-    if 'probePhoIso03_uncorr' in varrs:
+
+    if 'probePhoIso03_uncorr' in varrs: #fgg fixes. can leave in anyway
         varrs.pop(varrs.index('probePhoIso03_uncorr'))
-        
+
+    if 'probePhoIdMVA_xml' in varrs: #fgg fixes. can leave in anyway
+        varrs.pop(varrs.index('probePhoIdMVA_xml'))
+
     if options.mc.split('.')[-1] == 'root':
+    #used when checking flashgg output 
         if options.mc_tree is None:
             raise NameError('mc_tree has to be in options if a *.root file is used as input')
-        df_mc = root_pandas.read_root(options.mc, options.mc_tree, columns=varrs)
+        df_mc = root_pandas.read_root(options.mc, options.mc_tree, columns=varrs) #too much mem?
+
+        #df_mc_file = upr.open(options.mc)
+        #df_mc_tree = df_mc_file[options.mc_tree]
+        #df_mc = df_mc_tree.pandas.df(varrs)
+        ##df_mc = df_mc_trees[options.mc_tree].pandas.df(varrs.query('probePt>@self.ptmin and probePt<@self.ptmax and probeScEta>@self.etamin and probeScEta<@self.etamax and probePhi>@self.phimin and probePhi<@self.phimax')
     else:
         df_mc = pd.read_hdf(options.mc, columns=varrs)
 
     if options.data.split('.')[-1] == 'root':
+    #used when checking flashgg output 
         if options.data_tree is None:
             raise NameError('data_tree has to be in options if a *.root file is used as input')
-        df_data = root_pandas.read_root(options.data, options.data_tree, columns=varrs_data)
+        df_data = root_pandas.read_root(options.data, options.data_tree, columns=varrs_data) #too much mem?
+        #df_data_trees = upr.open(options.data)
+        #df_data = df_data_trees[options.data_tree].pandas.df(varrs_data)
     else:
         df_data = pd.read_hdf(options.data, columns=varrs_data)
+  
+    #print 'mc columns: {}'.format(df_mc.columns)
+    #print 'data columns: {}'.format(df_data.columns)
 
     if 'weight_clf' not in df_mc.columns and not options.no_reweight:
+        print 'Doing 4D mc reweighting...'
         if options.reweight_cut is not None:
             df_mc['weight_clf'] = syst.utils.clf_reweight(df_mc, df_data, n_jobs=10, cut=options.reweight_cut)
         else:
@@ -99,24 +118,31 @@ def main(options):
                 warnings.warn('Cut from 0th plot used to reweight whole dataset. Make sure this makes sense')
                 df_mc['weight_clf'] = syst.utils.clf_reweight(df_mc, df_data, n_jobs=10, cut=plot_dict[0]['cut'])
 
+    #dont need this after earlier relabelling #NOTE: do need this for when it comes out of flashgg!
     if 'probePhiWidth' in varrs:
         df_data['probePhiWidth'] = df_data['probePhiWidth_Sc']
 
     if 'probeEtaWidth' in varrs:
         df_data['probeEtaWidth'] = df_data['probeEtaWidth_Sc']
 
-    # if 'probePhoIso03' in varrs:
-    #     df_mc['probePhoIso03_uncorr'] = df_mc['probePhoIso_uncorr']
+    if 'probePhoIso03' in varrs:
+        df_mc['probePhoIso'] = df_mc['probePhoIso03']
+        df_data['probePhoIso'] = df_data['probePhoIso03']
 
-    if options.recomp_mva:
+    # if 'probePhoIso03' in varrs: #something wrong here?
+    #    _ df_mc['probePhoIso03_uncorr'] = df_mc['probePhoIso_uncorr']
+
+    if options.recomp_mva: #NOTE: need to do this for output of flashgg, since not sure xmls are updated to UL there
         stride = int(df_mc.index.size/10)
-        print(stride)
+        #corrected vars have original names in fgg output
         correctedVariables = ['probeR9', 'probeS4', 'probeCovarianceIeIp', 'probeEtaWidth', 'probePhiWidth', 'probeSigmaIeIe', 'probePhoIso', 'probeChIso03', 'probeChIso03worst']
-        weightsEB = "/work/threiten/QReg/ReReco17_data/camp_3_1_0/PhoIdMVAweights/HggPhoId_94X_barrel_BDT_v2.weights.xml"
-        weightsEE = "/work/threiten/QReg/ReReco17_data/camp_3_1_0/PhoIdMVAweights/HggPhoId_94X_endcap_BDT_v2.weights.xml"
-        df_mc['probeScPreshowerEnergy'] = np.zeros(df_mc.index.size)
-        df_mc['probePhoIdMVA_uncorr'] = np.concatenate(Parallel(n_jobs=10,verbose=20)(delayed(helpComputeIdMva)(weightsEB,weightsEE,correctedVariables,df_mc[ch:ch+stride],'uncorr', False) for ch in range(0,df_mc.index.size,stride)))
-        # df_mc['probePhoIdMVA_uncorr'] = helpComputeIdMva(weightsEB,weightsEE,correctedVariables,df_mc,'uncorr', False)
+        weightsEB = "/vols/cms/jwd18/qRCSamples/IDMVAs/PhoID_barrel_UL2017_GJetMC_SATrain_nTree2k_LR_0p1_13052020_BDTG.weights.xml"
+        weightsEE = "/vols/cms/jwd18/qRCSamples/IDMVAs/PhoID_endcap_UL2017_GJetMC_SATrain_nTree2k_LR_0p1_13052020_BDTG.weights.xml"
+        if 'abs(probeScEta)<1.4442' in plot_dict[0]['cut']: df_mc['probeScPreshowerEnergy'] = np.zeros(df_mc.index.size)#NOTE: has a value in fgg for EE, which we read in, but not for EB
+        df_mc['probePhoIdMVA_uncorr'] = np.concatenate(Parallel(n_jobs=10,verbose=20)(delayed(helpComputeIdMva)(weightsEB,weightsEE,correctedVariables,df_mc[ch:ch+stride],'uncorr', False) for ch in range(0,df_mc.index.size,stride))) #uncorr
+        df_mc['probePhoIdMVA_xml'] = np.concatenate(Parallel(n_jobs=10,verbose=20)(delayed(helpComputeIdMva)(weightsEB,weightsEE,correctedVariables,df_mc[ch:ch+stride],'data', False) for ch in range(0,df_mc.index.size,stride))) #id from local xml
+        #so df_mc['probePhoIdMVA'] is the one coming from flashgg
+          
 
     varrs_miss = check_vars(df_mc, varrs)
     varrs_data_miss = check_vars(df_data, varrs_data)
@@ -127,12 +153,19 @@ def main(options):
     
     plots = []
     for dic in plot_dict:
-        plots.append(pldmc.plot_dmc_hist(df_mc, df_data=df_data, ratio=options.ratio, norm=options.norm, cut_str=options.cutstr, label=options.label, **dic))
-
-    for plot in plots:
+        #plots.append(pldmc.plot_dmc_hist(df_mc, df_data=df_data, ratio=options.ratio, norm=options.norm, cut_str=options.cutstr, label=options.label, **dic))
+        #NOTE: weight for plotting comes from clf_weight
+        #plots.append(pldmc.plot_dmc_hist(df_mc, df_data=df_data, norm=options.norm, cut_str=options.cutstr, label=options.label, **dic))
+        plot = pldmc.plot_dmc_hist(df_mc, df_data=df_data, norm=options.norm, cut_str=options.cutstr, label=options.label, **dic)
         plot.draw()
         plot.save(options.outdir, save_dill=options.save_dill)
         matplotlib.pyplot.close(plot.fig)
+
+    #for plot in plots:
+    #    plot.draw()
+    #    plot.save(options.outdir, save_dill=options.save_dill)
+    #    matplotlib.pyplot.close(plot.fig)
+        
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()

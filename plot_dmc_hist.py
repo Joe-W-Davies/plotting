@@ -11,6 +11,7 @@ class plot_dmc_hist(plotBase):
 
     def __init__(self, df_mc, var, weightstr_mc, label, type, df_data=None, **kwargs):
 
+        #print 'DEBUG: data df inside dmc hist: {}'.format(df_data.head(20))
         super(plot_dmc_hist, self).__init__(df_mc, var, weightstr_mc, label, type, df_data=df_data, **kwargs)
 
         self.ratio_lim = kwargs['ratio_lim']
@@ -52,6 +53,12 @@ class plot_dmc_hist(plotBase):
 
         self.set_style()
 
+        print 'DEBUG: drawing variable: {}'.format(self.var)
+        print 'DEBUG: mc shape: {}'.format(self.mc.shape)
+        print 'DEBUG: mc weights shape: {}'.format(self.mc_weights.shape)
+        print 'DEBUG: mc looks like: {}'.format(self.mc)
+        print 'DEBUG: mc weightslooks like: {}'.format(self.mc_weights)
+
         if self.ratio:
             fig, axes = plt.subplots(2, figsize=(8, 6), sharex=True, gridspec_kw={'height_ratios': [3, 1]})
             top = axes[0]
@@ -72,13 +79,15 @@ class plot_dmc_hist(plotBase):
             
         self.mc_hists = []
         mc_errs = []
-        for var in self.mc_vars:
+        for var in self.mc_vars: #useful if exts to var
             i = self.mc_vars.index(var)
             hist, _, _ = top.hist(self.mc.loc[:, [var]].values, bins=self.bins, range=(self.bins[0], self.bins[-1]), histtype='step', alpha=1, weights=self.mc_weights, label=self.mc_labels[i], color=self.colors[i], linestyle='solid', linewidth=3)
             mc_err, _ = np.histogram(self.mc.loc[:, [var]].values, density=False, bins=self.bins, range=(self.bins[0],self.bins[-1]), weights=self.mc_weights**2)
             mc_err = np.sqrt(mc_err)
             mc_errs.append(mc_err)
             self.mc_hists.append(hist)
+
+            print 'DEBUG: mc hist: {}'.format(hist)
 
         if self.data is not None:
             if hasattr(self, 'data_weights'):
@@ -88,7 +97,9 @@ class plot_dmc_hist(plotBase):
             else:
                 self.data_hist, _ = np.histogram(self.data, density=False, bins=self.bins)
                 data_err = np.sqrt(self.data_hist)
+                print 'DEBUG: data hist: {}'.format(self.data_hist)
             (_, caps, _) = top.errorbar(xc, self.data_hist, ls='None', yerr=data_err, xerr=np.ones_like(self.data_hist)*binw*0.5, color='black', label=r'data', marker='.', markersize=8)
+
             for cap in caps:
                 cap.set_markeredgewidth(0)
 
@@ -112,7 +123,8 @@ class plot_dmc_hist(plotBase):
             bottom.set_ylim(self.ratio_lim)
 
         if hasattr(self, 'logy'):
-            if self.logy:
+            #if self.logy:
+            if (self.logy) and (np.sum(hist)>0):
                 top.set_yscale('log')
         top.set_xlim(self.bins[0], self.bins[-1])
 

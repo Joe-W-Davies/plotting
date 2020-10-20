@@ -5,19 +5,19 @@ matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import pandas as pd
 
-binsqpars = {'probeS4': (0,2,200001), 'probeR9': (0,2,200001), 'probeEtaWidth': (0,.1,200001), 'probePhiWidth': (0,.5,200001), 'probeSigmaIeIe': (0,.1,400001), 'newPhoID': (-0.8,1,200001), 'probePt': (0,200,2000001), 'probeScEta': (-2.5,2.5,500001), 'probePhi': (-3.14,3.14,600001),'rho': (0,80,800001),'probeCovarianceIpIp': (0,0.002,200001),'probeCovarianceIphiIphi': (0,0.002,200001),'probeCovarianceIeIp': (-0.001,0.001,400001),'probeCovarianceIetaIphi': (-0.001,0.001,400001), 'probeChIso03worst': (0,20,200001), 'probeChIso03': (0,20,20001), 'probeChIso03worst': (0,20,20001), 'probeEnergy': (0,400,400001), 'probePhoIso' : (0,20,20001), 'probeScPreshowerEnergy': (0,50,250001), 'probeSigmaRR': (0,1,100001), 'newPhoIDtrIsoZ': (0,1,100001)}
+binsqpars = {'probeS4': (0,2,200001), 'probeR9': (0,2,200001), 'probeEtaWidth': (0,.1,200001), 'probePhiWidth': (0,.5,200001), 'probeSigmaIeIe': (0,.1,400001), 'newPhoID': (-0.8,1,200001),'newULPhoID': (-0.8,1,200001), 'probePt': (0,200,2000001), 'probeScEta': (-2.5,2.5,500001), 'probePhi': (-3.14,3.14,600001),'rho': (0,80,800001),'probeCovarianceIpIp': (0,0.002,200001),'probeCovarianceIphiIphi': (0,0.002,200001),'probeCovarianceIeIp': (-0.001,0.001,400001),'probeCovarianceIetaIphi': (-0.001,0.001,400001), 'probeChIso03worst': (0,20,200001), 'probeChIso03': (0,20,20001), 'probeChIso03worst': (0,20,20001), 'probeEnergy': (0,400,400001), 'probePhoIso' : (0,20,20001), 'probeScPreshowerEnergy': (0,50,250001), 'probeSigmaRR': (0,1,100001), 'newPhoIDtrIsoZ': (0,1,100001)}
 
-dvar_bins = {'probePt': (25,75,51), 'probeScEta': { 'EB': (-1.4442,1.4442,51), 'EE': (1.57, 2.5, 31)}, 'probePhi': (-3.14,3.14,61), 'rho': (0,40,41), 'run': (297050,304797,200)}
+dvar_bins = {'probePt': (25,100,76), 'probeScEta': { 'EB': (-1.4442,1.4442,51), 'EE': (1.57, 2.5, 31)}, 'probePhi': (-3.14,3.14,61), 'rho': (0,40,41), 'run': (297050,304797,200)}
 
 def wquantile(q,vals,bins,weights=None):
     centres=0.5*(bins[1:]+bins[:-1])
     hist, _ = np.histogram(vals,bins=bins,weights=weights)
     cum_hist = np.cumsum(hist,dtype=float)
-    cum_hist_n = cum_hist/cum_hist[-1]
-    ind_high_bound = np.searchsorted(cum_hist_n,q)
-    ind_low_bound = ind_high_bound-1
+    cum_hist_n = cum_hist/cum_hist[-1] #normalised binned cum sum
+    ind_high_bound = np.searchsorted(cum_hist_n,q) #find index where quantile sits (i.e. q-bin placement in cdf)
+    ind_low_bound = ind_high_bound-1 # can do this since normalised cdf hist
     inds=np.sort(np.ravel(np.array([ind_low_bound,ind_high_bound])))
-    q_vals = np.interp(q,cum_hist_n[inds],centres[inds])
+    q_vals = np.interp(q,cum_hist_n[inds],centres[inds]) # (q, X, y)
     return q_vals
 
 def wquantile_unb(q,vals,weights):
@@ -33,6 +33,16 @@ def wquantile_unb(q,vals,weights):
 class profilePlot:
     
     def __init__(self,df_mc,df_data,nq,bintpe,var,diff_var,weightst_mc,EBEE,zoom=False,corrlabel=None,addlabel=None,label='',addlegd=None,corrname=None,weightst_data=None):
+        '''
+        :df_mc:       df for simulation containing all vars to be plot, including corrected vars
+        :df_data:     df for data containing all vars to be plot
+        :var:         y-var to plot
+        :diff_var:    x-var to plot (plotting var on y, in x bins of diff var)
+        :nq:          number of bins of x axis variable. nominally chose 40
+        :bintpe:      normally just set to 'equ', which splits the data into xaxis bins of equal events number. may also have a linear splitting by specificying 'lin'
+        :EBEE:        evaluate in EE or EB region
+        :weightst_mc: string name of weights for plotting. MC or Clf re-weighted?
+        '''
         
         self.var = var
         self.diff_var = diff_var
@@ -57,16 +67,16 @@ class profilePlot:
         self.mc = df_mc.loc[:,[self.var,self.diff_var,weightst_mc]]
         
         self.corr=False
-        if corrlabel!=None:
+        if corrlabel is not None:
             self.mc[self.var+self.corrlabel]=df_mc[self.var+self.corrlabel]
             self.corr=True
         
         self.add=False
-        if addlabel!=None:
+        if addlabel is not None:
             self.mc[self.var+self.addlabel]=df_mc[self.var+self.addlabel]
             self.add=True
         
-        if weightst_data == None:
+        if weightst_data is None:
             self.data = df_data.loc[:,[self.var,self.diff_var]]
             self.data['weight_dumm']=np.ones(self.data.index.size)
             self.weightst_data = 'weight_dumm'
@@ -75,7 +85,7 @@ class profilePlot:
             self.weightst_data = weightst_data
         
         if self.bintpe == 'equ':
-            self.data[self.diff_var+'_bin'],self.diff_bins=pd.qcut(self.data[self.diff_var],self.nq,labels=np.arange(self.nq),retbins=True)
+            self.data[self.diff_var+'_bin'], self.diff_bins = pd.qcut(self.data[self.diff_var], self.nq, labels=np.arange(self.nq), retbins=True)
             self.centers = 0.5*(self.diff_bins[1:]+self.diff_bins[:-1])
             self.mc[self.diff_var+'_bin']=pd.cut(self.mc[self.diff_var],bins=self.diff_bins,labels=np.arange(self.nq))
 
@@ -168,8 +178,8 @@ class profilePlot:
         # plt.title(self.title,y=1.05)
         fig.text(0.13,.91,r'\textbf{CMS} \textit{Work in Progress}',fontsize=11)
         plt.legend(loc='best')
-        if self.diff_var=='probePt':
-            plt.xlim(20,60)
+        #if self.diff_var=='probePt':
+        #    plt.xlim(20,60)
 
         self.fig = fig
 
@@ -185,6 +195,7 @@ class profilePlot:
     def save(self,outDir):
         self.fig.savefig(outDir + '/' + self.name + '.png',bbox_iches='tight')
         self.fig.savefig(outDir + '/' + self.name + '.pdf',bbox_iches='tight')
+        plt.close()
     
     def set_binsq(self,low,high,nob):
         self.binsq=np.linspace(low,high,nob+1)

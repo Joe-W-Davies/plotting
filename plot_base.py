@@ -46,10 +46,12 @@ class plotBase(object):
         else:
             self.data = None
 
+        #print 'DEBUG: df_data inside base class {}'.format(df_data.head(20))
+
         self.mc_weights = df_mc_read.loc[:, [weightstr_mc]].values
         self.mc_weights_cache = df_mc_read.loc[:, [weightstr_mc]].values
 
-        self.tex_replace_dict = yaml.load(open('/t3home/threiten/python/plotting/texReplacement.yaml'))
+        self.tex_replace_dict = yaml.load(open('/vols/build/cms/jwd18/serviceTasks/CQR/CMSSW_10_2_0/src/plotting/texReplacement.yaml'))
 
         if 'weightstr_data' in kwargs and df_data is not None:
             self.weightstr_data = kwargs['weightstr_data']
@@ -61,7 +63,8 @@ class plotBase(object):
         if 'leg_loc' in kwargs:
             self.leg_loc = kwargs['leg_loc'].replace('_', ' ')
 
-        self.colors = list(cm.tab10.colors)
+        #self.colors = list(cm.tab10.colors)
+        self.colors = ['blue', 'green', 'cyan', 'yellow', 'purple', 'red']
 
     def save(self, out_dir, save_dill=False):
 

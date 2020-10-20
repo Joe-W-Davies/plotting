@@ -1,0 +1,26 @@
+mass: math:m_{ee}:GeV
+probePt: math:p_{t}:GeV
+tagPt: math:p_{t}(tag):GeV
+tagR9: math:R_{9}(tag)
+probeScEta: math:\eta
+probePhi: math:\phi
+abs(probeScEta)<1.4442: \begin{huge}\textbf{\textit{EB}}\end{huge}
+abs(probeScEta)>1.56: \begin{huge}\textbf{\textit{EE}}\end{huge}
+probePassEleVeto==0: ''
+abs(tagScEta)<2.5: ''
+abs(probeScEta)<2.5: ''
+probeChIso03: math:Iso_{ch}:GeV
+probeChIso03_corr: math:Iso_{ch}:GeV
+probeChIso03worst: math:Iso_{ch,worst}:GeV
+probeSigmaIeIe_corr: math:\sigma_{i\eta i\eta}
+probeSigmaIeIe: math:\sigma_{i\eta i\eta}
+run: math:\textnormal{run}
+probePhoIso: math:Iso_{ph}:GeV
+probeR9: math:R_{9}
+probeS4: math:S_{4}
+probeEtaWidth: math:\sigma_{\eta}
+probePhiWidth: math:\sigma_{\phi}
+probeCovarianceIeIp: math:\sigma_{i\eta i\phi}
+probeCovarianceIetaIphi: math:\sigma_{i\eta i\phi}
+rho: math:\rho:GeV
+sigmaMoM_decorr: math:\sigma_{M}/M\,\textnormal{(decorrelated)}
